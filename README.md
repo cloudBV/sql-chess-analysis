@@ -4,7 +4,7 @@ SQL analysis of **40,038 Lichess games** (January to July 2026): data cleaning, 
 
 **Live dashboard: https://cloudbv.github.io/sql-chess-analysis/**
 
-I built this as the analysis side of my chess project. [ChessAutoplay](https://play.google.com/store/apps/details?id=YOUR_APP_ID) (Android, Godot 4) and my Python PGN tool prepare the data; this repo asks questions of it with SQL.
+I built this as the analysis side of my chess project. [ChessAutoplay](https://play.google.com/store/apps/details?id=com.cloudbv.chesstournamentautoplay) (Android, Godot 4) and my Python PGN tool prepare the data; this repo asks questions of it with SQL.
 
 ## Dashboard
 
@@ -60,7 +60,7 @@ The player leaderboard (Section 3) is left out of the dashboard because it lists
 - **White scores about 53 to 54%** across rating tiers (based on 36,518 cleaned games).
 - **Elo expectation vs reality:** the standard Elo formula has no notion of colour. Comparing actual to expected White scores, White outperforms the formula when it is the lower-rated side (about +7 points at gaps of 200 to 400) and slightly underperforms it when it is the higher-rated side. This pattern is consistent with a built-in advantage for White.
 - **Very short and very long games draw most:** 41.2% of games under 20 moves end in a draw, against about 20% for games of 20 to 59 moves and 28.6% for games of 60+ moves.
-- **Indexing:** an ECO filter query changed from a sequential scan to a bitmap index scan after `CREATE INDEX`: `YOUR_BEFORE_MS` ms to `YOUR_AFTER_MS` ms. The dataset is small, so the absolute gain is modest; the point is the changed query plan.
+- **Indexing:** an ECO filter query changed from a sequential scan to a bitmap index scan after `CREATE INDEX`. The dataset is small, so the absolute gain is modest; the point is the changed query plan.
 
 ## How to run
 
