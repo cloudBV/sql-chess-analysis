@@ -1,8 +1,23 @@
 # Chess Game Analysis with PostgreSQL
 
-SQL analysis of **40,038 Lichess games** (January to July 2026): data cleaning, opening statistics, player performance, rating-vs-result analysis, and query tuning, all in PostgreSQL.
+SQL analysis of **40,038 Lichess games** (January to July 2026): data cleaning, opening statistics, player performance, rating-vs-result analysis, and query tuning, all in PostgreSQL. The results are presented in a one-page dashboard.
 
-I built this as the analysis side of my chess project. [ChessAutoplay](https://play.google.com/store/apps/details?id=) (Android, Godot 4) and my Python PGN tool prepare the data; this repo asks questions of it with SQL.
+**Live dashboard: https://cloudbv.github.io/sql-chess-analysis/**
+
+I built this as the analysis side of my chess project. [ChessAutoplay](https://play.google.com/store/apps/details?id=YOUR_APP_ID) (Android, Godot 4) and my Python PGN tool prepare the data; this repo asks questions of it with SQL.
+
+## Dashboard
+
+`index.html` is a single static page (no build step, no dependencies) that charts the query results exported from `chess_analysis.sql`. It shows:
+
+- Draw rate by rating band
+- Actual vs Elo-expected White score by rating gap
+- Result split and White's score by rating tier
+- Draw rate by game length
+- Best and worst openings for White
+- The biggest upsets
+
+It follows your light or dark mode and works on mobile.
 
 ## Dataset
 
@@ -27,22 +42,25 @@ One bug caught during testing: a filter written as `NOT (... OR white_elo > 3000
 
 ## What the analysis covers
 
-| Section | Question | SQL techniques |
-|---|---|---|
-| 1 | How clean is the data? | `FILTER`, `CASE`, views, `NULL` handling |
-| 2 | Which openings score best for White in each ECO family? | CTEs, `RANK() OVER (PARTITION BY ...)` |
-| 3 | Who played the most, and how did they score? Does colour matter? | `UNION ALL` reshaping, `HAVING` |
-| 4 | Do higher-rated players win as often as Elo predicts? | bucketing, expected-score formula |
-| 5 | Which openings lead to the longest games? | `percentile_cont` (median) |
-| 6 | How do volume, rating, and draw rate change by month? | `date_trunc`, `LAG()`, running `SUM() OVER` |
-| 7 | Does indexing speed up the queries? | `CREATE INDEX`, `EXPLAIN ANALYZE` |
+| Section | Question | SQL techniques | Dashboard chart |
+|---|---|---|---|
+| 1 | How clean is the data? | `FILTER`, `CASE`, views, `NULL` handling | KPI strip, result split |
+| 2 | Which openings score best for White in each ECO family? | CTEs, `RANK() OVER (PARTITION BY ...)` | Best and worst openings |
+| 3 | Who played the most, and how did they score? Does colour matter? | `UNION ALL` reshaping, `HAVING` | White's score by rating tier |
+| 4 | Do higher-rated players win as often as Elo predicts? | bucketing, expected-score formula | Actual vs expected, draw rate by rating, biggest upsets |
+| 5 | Which openings lead to the longest games? | `percentile_cont` (median) | Draw rate by game length |
+| 6 | How do volume, rating, and draw rate change by month? | `date_trunc`, `LAG()`, running `SUM() OVER` | not charted (see Limitations) |
+| 7 | Does indexing speed up the queries? | `CREATE INDEX`, `EXPLAIN ANALYZE` | not charted |
+
+The player leaderboard (Section 3) is left out of the dashboard because it lists individual people and the names are not standardised.
 
 ## Selected findings
 
 - **Draw rate rises steeply with rating:** 16.4% for average rating around 1400, 24.8% around 2000, 39.9% around 2400, and 46.0% at 2600+ (363 games).
 - **White scores about 53 to 54%** across rating tiers (based on 36,518 cleaned games).
 - **Elo expectation vs reality:** the standard Elo formula has no notion of colour. Comparing actual to expected White scores, White outperforms the formula when it is the lower-rated side (about +7 points at gaps of 200 to 400) and slightly underperforms it when it is the higher-rated side. This pattern is consistent with a built-in advantage for White.
-- **Indexing:** an ECO filter query changed from a sequential scan to a bitmap index scan after `CREATE INDEX`: `[your ms before]` to `[your ms after]`. The dataset is small, so the absolute gain is modest; the point is the changed query plan.
+- **Very short and very long games draw most:** 41.2% of games under 20 moves end in a draw, against about 20% for games of 20 to 59 moves and 28.6% for games of 60+ moves.
+- **Indexing:** an ECO filter query changed from a sequential scan to a bitmap index scan after `CREATE INDEX`: `YOUR_BEFORE_MS` ms to `YOUR_AFTER_MS` ms. The dataset is small, so the absolute gain is modest; the point is the changed query plan.
 
 ## How to run
 
@@ -52,16 +70,19 @@ One bug caught during testing: a filter written as `NOT (... OR white_elo > 3000
    \copy games FROM 'games_export.txt' WITH (FORMAT csv, DELIMITER E'\t', HEADER true, ENCODING 'UTF8')
    ```
 3. Run the rest of the script in order. It is re-runnable.
+4. To view the dashboard locally, open `index.html` in a browser. The numbers are embedded in the page, so no server is needed.
 
 ## Limitations
 
+- About 98% of the cleaned games (35,880 of 36,518) were played in July 2026, so the monthly trend query (Section 6) runs but does not show a meaningful trend, and the dashboard leaves it out.
 - Player names are not standardised in the source (for example, `Gupta, Abhijeet` and `Abhijeet Gupta` can both appear), so the player leaderboard can split one person across two spellings.
 - Games come from a mix of tournaments; rating pools and time controls vary (about half of games have no time control recorded).
+- Opening statistics use a minimum of 30 games per opening, so each percentage still rests on a modest sample.
 - Section 7 timings depend on hardware and data size.
 
 ## Tools
 
-PostgreSQL 16, pgAdmin 4. Data preparation: Python, python-chess.
+PostgreSQL 16, pgAdmin 4. Data preparation: Python, python-chess. Dashboard: plain HTML, CSS, and JavaScript with inline SVG charts.
 
 ---
 
