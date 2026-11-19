@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Chess Game Analysis: 36,518 Lichess Games</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Spectral:wght@500;700;800&family=Instrument+Sans:wght@400;600&display=swap">
+<style>
+:root{--bg:#eceef3;--panel:#fff;--ink:#171b26;--mute:#596073;--line:#d6dae4;--acc:#3a4bbf;--gold:#c48a12;--red:#c0392b;--soft:#e4e7ef;--bl:#232a3b;color-scheme:light;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#10131a;--panel:#191e2a;--ink:#e8ebf3;--mute:#9aa3b8;--line:#2b3244;--acc:#8b9cf5;--gold:#e5b53f;--red:#ef7a6b;--soft:#222a3a;--bl:#8392bd;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#10131a;--panel:#191e2a;--ink:#e8ebf3;--mute:#9aa3b8;--line:#2b3244;--acc:#8b9cf5;--gold:#e5b53f;--red:#ef7a6b;--soft:#222a3a;--bl:#8392bd;color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Instrument Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;line-height:1.5}
+main{max-width:1080px;margin:0 auto;padding:36px 20px 56px}
+h1,h2,.kpi b{font-family:Spectral,Georgia,"Times New Roman",serif}
+h1{font-size:clamp(28px,4.4vw,44px);font-weight:800;letter-spacing:-.01em;margin:0 0 6px}
+.sub{color:var(--mute);margin:0 0 26px;max-width:66ch}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));border-top:3px solid var(--ink);border-bottom:1px solid var(--line);margin-bottom:26px}
+.kpi{padding:14px 16px 12px 0}
+.kpi+.kpi{padding-left:16px;border-left:1px solid var(--line)}
+.kpi b{display:block;font-size:30px;font-weight:700}
+.kpi span{color:var(--mute);font-size:14px}
+section{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:20px 22px;margin-bottom:20px}
+.hero{border:2px solid var(--ink)}
+h2{font-size:21px;margin:0 0 4px;font-weight:700}
+.note{color:var(--mute);font-size:14px;margin:0 0 14px;max-width:72ch}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px}
+.grid section{margin:0}
+@media(max-width:780px){.grid{grid-template-columns:1fr}}
+svg{width:100%;height:auto;display:block;overflow:visible}
+svg text{fill:var(--mute);font:12px "Instrument Sans",system-ui,sans-serif}
+svg text.v{fill:var(--ink);font-weight:600}
+.legend{display:flex;gap:14px;font-size:13px;color:var(--mute);margin-bottom:8px;flex-wrap:wrap}
+.legend i{display:inline-block;width:18px;height:3px;margin-right:6px;vertical-align:middle}
+.tw{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:14px;min-width:560px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line)}
+th{color:var(--mute);font-weight:600}
+td.n{font-variant-numeric:tabular-nums}
+.foot{color:var(--mute);font-size:13px;max-width:80ch}
+</style>
+</head>
+<body>
+<main>
+<h1>Chess Game Analysis</h1>
+<p class="sub">36,518 standard Lichess games from 2026, analysed in PostgreSQL after removing variants, unfinished games, engine games and placeholder ratings.</p>
+<div class="kpis">
+<div class="kpi"><b>36,518</b><span>Games analysed, of 40,038 raw</span></div>
+<div class="kpi"><b>41.7%</b><span>White wins</span></div>
+<div class="kpi"><b>35.5%</b><span>Black wins</span></div>
+<div class="kpi"><b>22.8%</b><span>Draws</span></div>
+</div>
+
+<section class="hero">
+<h2>Better players draw far more often</h2>
+<p class="note">Draw rate by average rating of the two players. It rises from 16% among 1400-rated games to 46% at 2600 and above.</p>
+<div id="draw"></div>
+</section>
+
+<section>
+<h2>Underdogs beat the Elo formula</h2>
+<p class="note">White’s actual score against the score Elo predicts, grouped by White’s rating minus Black’s. Where the gap is negative (White is the underdog), White scores 4–7 points above expectation. Favorites fall slightly short of it.</p>
+<div class="legend"><span><i style="background:var(--acc)"></i>Actual</span><span><i style="background:var(--mute);height:0;border-top:2px dashed var(--mute)"></i>Expected by Elo</span></div>
+<div id="elo"></div>
+</section>
+
+<div class="grid">
+<section>
+<h2>Who wins</h2>
+<p class="note">White holds a steady edge: it scores 53–54% in every rating tier.</p>
+<div id="res"></div>
+<div id="tier"></div>
+</section>
+<section>
+<h2>Very short and very long games draw most</h2>
+<p class="note">Draw rate by game length, in moves.</p>
+<div id="len"></div>
+</section>
+</div>
+
+<section>
+<h2>Openings that help or hurt White</h2>
+<p class="note">White’s score (win = 1, draw = ½) in the best and worst openings of each ECO family, with at least 30 games. The line marks an even 50%.</p>
+<div id="open"></div>
+</section>
+
+<section>
+<h2>Biggest upsets</h2>
+<p class="note">Lower-rated players who won against a gap of 300 or more points. These are the six largest.</p>
+<div class="tw"><table id="up"></table></div>
+</section>
+
+<p class="foot">Source: SQL queries on a PostgreSQL table of Lichess games. About 98% of the cleaned games were played in July 2026, so a month-by-month trend would not be meaningful and is left out.</p>
+</main>
+<script>
+function $(i){return document.getElementById(i)}
+function svg(W,H,l){return '<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="'+l+'">'}
+
+(function(){
+var D=[[1400,2779,16.4],[1600,6092,19.7],[1800,7352,21.4],[2000,7249,24.8],[2200,5703,30.9],[2400,2063,39.9],[2600,363,46.0]];
+var W=900,H=300,L=44,B=34,T=24,n=D.length,bw=(W-L)/n,y=function(v){return T+(H-T-B)*(1-v/50)};
+var s=svg(W,H,"Draw rate by rating band");
+[0,10,20,30,40,50].forEach(function(v){s+='<line x1="'+L+'" x2="'+W+'" y1="'+y(v)+'" y2="'+y(v)+'" stroke="var(--line)"/><text x="'+(L-8)+'" y="'+(y(v)+4)+'" text-anchor="end">'+v+'%</text>'});
+D.forEach(function(d,i){var x=L+i*bw+10,w=bw-20;s+='<rect x="'+x+'" y="'+y(d[2])+'" width="'+w+'" height="'+(y(0)-y(d[2]))+'" rx="3" fill="'+(i==6?"var(--gold)":"var(--acc)")+'"><title>'+d[0]+"–"+(d[0]+199)+": "+d[2]+"% draws, "+d[1].toLocaleString("en-US")+' games</title></rect><text class="v" x="'+(x+w/2)+'" y="'+(y(d[2])-6)+'" text-anchor="middle">'+d[2]+'%</text><text x="'+(x+w/2)+'" y="'+(H-12)+'" text-anchor="middle">'+d[0]+"–"+(d[0]+199)+'</text>'});
+$("draw").innerHTML=s+'</svg>';
+})();
+
+(function(){
+var G=[-700,-600,-500,-400,-300,-200,-100,0,100,200,300,400,500,600];
+var A=[4.7,4.7,14.1,19.0,26.8,37.3,46.4,59.4,68.7,78.3,86.3,90.6,96.0,97.8];
+var E=[2.5,4.3,7.3,12.3,19.7,30.0,42.2,57.6,70.0,80.2,87.8,92.6,95.7,97.5];
+var W=900,H=300,L=44,B=34,T=10,R=10,n=G.length,x=function(i){return L+i*(W-L-R)/(n-1)},y=function(v){return T+(H-T-B)*(1-v/100)};
+var s=svg(W,H,"Actual versus expected White score by rating gap");
+[0,25,50,75,100].forEach(function(v){s+='<line x1="'+L+'" x2="'+(W-R)+'" y1="'+y(v)+'" y2="'+y(v)+'" stroke="var(--line)"/><text x="'+(L-8)+'" y="'+(y(v)+4)+'" text-anchor="end">'+v+'%</text>'});
+function p(a){return a.map(function(v,i){return (i?"L":"M")+x(i)+","+y(v)}).join("")}
+s+='<path d="'+p(E)+'" fill="none" stroke="var(--mute)" stroke-width="2" stroke-dasharray="6 5"/><path d="'+p(A)+'" fill="none" stroke="var(--acc)" stroke-width="3" stroke-linejoin="round"/>';
+G.forEach(function(g,i){s+='<circle cx="'+x(i)+'" cy="'+y(A[i])+'" r="4" fill="var(--acc)"><title>Gap '+g+": actual "+A[i]+"%, expected "+E[i]+'%</title></circle>';if(i%2==0)s+='<text x="'+x(i)+'" y="'+(H-12)+'" text-anchor="middle">'+g+'</text>'});
+s+='<text x="'+(W/2)+'" y="'+(H+6)+'" text-anchor="middle">White rating minus Black rating (start of each 100-point bucket)</text>';
+$("elo").innerHTML=s+'</svg>';
+})();
+
+(function(){
+var W=440,H=44,s=svg(W,H,"Result split"),x=0,P=[["White wins",41.7,"#fff","var(--ink)"],["Draws",22.8,"var(--gold)","none"],["Black wins",35.5,"var(--bl)","none"]];
+P.forEach(function(r){var w=W*r[1]/100;s+='<rect x="'+x+'" y="0" width="'+w+'" height="28" fill="'+r[2]+'" stroke="'+r[3]+'" stroke-width="1"/><text class="v" x="'+(x+w/2)+'" y="18" text-anchor="middle" style="fill:'+(r[0]=="Black wins"?"#fff":"#171b26")+'">'+r[1]+'%</text><text x="'+(x+w/2)+'" y="42" text-anchor="middle">'+r[0]+'</text>';x+=w});
+$("res").innerHTML=s+'</svg>';
+var T=[["Under 1800",8890,53.0],["1800–2199",14601,52.8],["2200–2499",7157,54.0],["2500+",977,53.7]],h='<div class="tw" style="margin-top:16px"><table style="min-width:0"><tr><th>Average rating</th><th>Games</th><th>White score</th></tr>';
+T.forEach(function(t){h+='<tr><td>'+t[0]+'</td><td class="n">'+t[1].toLocaleString("en-US")+'</td><td class="n">'+t[2]+'%</td></tr>'});
+$("tier").innerHTML=h+'</table></div>';
+})();
+
+(function(){
+var D=[["Under 20",2337,41.2],["20–39",15355,19.6],["40–59",13209,20.8],["60+",5617,28.6]];
+var W=440,H=280,L=40,B=34,T=22,bw=(W-L)/4,y=function(v){return T+(H-T-B)*(1-v/50)};
+var s=svg(W,H,"Draw rate by game length");
+[0,10,20,30,40,50].forEach(function(v){s+='<line x1="'+L+'" x2="'+W+'" y1="'+y(v)+'" y2="'+y(v)+'" stroke="var(--line)"/><text x="'+(L-6)+'" y="'+(y(v)+4)+'" text-anchor="end">'+v+'%</text>'});
+D.forEach(function(d,i){var x=L+i*bw+12,w=bw-24;s+='<rect x="'+x+'" y="'+y(d[2])+'" width="'+w+'" height="'+(y(0)-y(d[2]))+'" rx="3" fill="var(--gold)"><title>'+d[0]+" moves: "+d[2]+"% draws, "+d[1].toLocaleString("en-US")+' games</title></rect><text class="v" x="'+(x+w/2)+'" y="'+(y(d[2])-6)+'" text-anchor="middle">'+d[2]+'%</text><text x="'+(x+w/2)+'" y="'+(H-12)+'" text-anchor="middle">'+d[0]+'</text>'});
+$("len").innerHTML=s+'</svg>';
+})();
+
+(function(){
+var O=[["Italian Game",79.0],["Vienna Game: Vienna Gambit",78.4],["Scotch Game",73.8],["Queen’s Pawn: Chigorin",73.0],["Slav Defense: Modern Line",70.4],["English: Four Knights (Sym.)",70.4],["Grünfeld: Exchange",37.5],["Four Knights Game",38.5],["Sicilian: Dragon",35.7],["French: Advance",35.7],["King’s Pawn: Leonardis",28.3],["Sicilian: Bowdler Attack",22.1]];
+var W=900,L=230,Rt=50,rh=30,H=O.length*rh+6,x=function(v){return L+(v-15)/70*(W-L-Rt)};
+var s=svg(W,H,"White score in best and worst openings");
+O.forEach(function(o,i){var yy=i*rh+4,a=x(Math.min(o[1],50)),b=x(Math.max(o[1],50));
+s+='<text x="'+(L-10)+'" y="'+(yy+16)+'" text-anchor="end">'+o[0]+'</text><rect x="'+a+'" y="'+yy+'" width="'+(b-a)+'" height="20" rx="3" fill="'+(o[1]>=50?"var(--acc)":"var(--red)")+'"><title>'+o[0]+": "+o[1]+'%</title></rect><text class="v" x="'+(o[1]>=50?b+6:a-6)+'" y="'+(yy+15)+'" text-anchor="'+(o[1]>=50?"start":"end")+'">'+o[1].toFixed(1)+'%</text>'});
+s+='<line x1="'+x(50)+'" x2="'+x(50)+'" y1="0" y2="'+H+'" stroke="var(--ink)" stroke-dasharray="4 4"/>';
+$("open").innerHTML=s+'</svg>';
+})();
+
+(function(){
+var U=[[642,"Black",1663,2305,"Nimzo-Larsen Attack: Modern Variation"],[635,"White",1519,2154,"Queen’s Gambit Declined: Exchange, Positional"],[603,"White",1614,2217,"French Defense: Winawer Variation"],[559,"Black",1856,2415,"Zukertort Opening: Lisitsyn Gambit Deferred"],[546,"Black",1759,2305,"Four Knights Game"],[544,"Black",1947,2491,"Italian Game: Giuoco Pianissimo"]];
+var h='<tr><th>Rating gap</th><th>Winner</th><th>Winner’s rating</th><th>Loser’s rating</th><th>Opening</th></tr>';
+U.forEach(function(u){h+='<tr><td class="n">'+u[0]+'</td><td>'+u[1]+'</td><td class="n">'+u[2]+'</td><td class="n">'+u[3]+'</td><td>'+u[4]+'</td></tr>'});
+$("up").innerHTML=h;
+})();
+</script>
+</body>
+</html>
